@@ -62,6 +62,7 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
   const backingPlayerRef = useRef<Tone.Player | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const loopRef = useRef<Tone.Sequence | null>(null);
+  const backingStartTimeRef = useRef<number>(0);
 
   // Sync gridRef pour accès dans la boucle sans re-render
   useEffect(() => {
@@ -71,7 +72,12 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
   // Sync BPM
   useEffect(() => {
     Tone.Transport.bpm.value = bpm;
-  }, [bpm]);
+    // On définit la boucle du Transport pour qu'elle corresponde à la grille
+    // 16 steps = 1 mesure ("1m"), 32 steps = 2 mesures ("2m")
+    Tone.Transport.loop = true;
+    Tone.Transport.loopStart = 0;
+    Tone.Transport.loopEnd = totalSteps === 16 ? "1m" : "2m";
+  }, [bpm, totalSteps]);
 
   // --- COLLABORATION ---
   const handleIncomingUpdate = useCallback((msg: any) => {
@@ -128,11 +134,14 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
     loopRef.current = new Tone.Sequence((time, step) => {
         setCurrentStep(step);
         
-        gridRef.current.forEach((trackSteps, trackIndex) => {
-          if (trackSteps[step]) {
+        // Ajout d'une sécurité pour éviter de lire une ligne qui n'existe plus (pendant un remove)
+        const currentGrid = gridRef.current;
+        currentGrid.forEach((trackSteps, trackIndex) => {
+          if (trackSteps && trackSteps[step]) {
             const player = playersRef.current[trackIndex];
             if (player && player.loaded) {
-              player.start(time);
+              // On utilise une petite marge (offset) pour éviter les clics audio
+              player.start(time, 0);
             }
           }
         });
@@ -140,10 +149,9 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
       Array.from({ length: totalSteps }, (_, i) => i),
       "16n"
     );
-
-    if (isPlaying) {
-      loopRef.current.start(0);
-    }
+    
+    // On programme la séquence pour qu'elle soit prête sur le Transport à la position 0
+    loopRef.current.start(0);
 
     return () => {
       loopRef.current?.dispose();
@@ -166,10 +174,11 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
         mute: backingLoop.isMuted,
         onload: () => {
            drawWaveform(player.buffer);
+           // On ne synchronise plus au Transport pour éviter que la boucle du séquenceur (16/32 steps) ne coupe le sample
+           if (isPlaying) player.start();
         }
       }).toDestination();
 
-      player.sync().start(0);
       backingPlayerRef.current = player;
     }
 
@@ -178,6 +187,18 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
       backingPlayerRef.current = null;
     };
   }, [backingLoop?.url]);
+
+  // Gestion manuelle du Play/Stop pour la boucle mélodique (indépendante du Transport loop)
+  useEffect(() => {
+    if (backingPlayerRef.current && backingPlayerRef.current.loaded) {
+      if (isPlaying) {
+        backingStartTimeRef.current = Tone.now();
+        backingPlayerRef.current.start();
+      } else {
+        backingPlayerRef.current.stop();
+      }
+    }
+  }, [isPlaying]);
 
   // 3. Sync Mute states
   useEffect(() => {
@@ -244,7 +265,10 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
         const buffer = backingPlayerRef.current.buffer;
         const duration = buffer.duration;
         if (duration > 0) {
-          const progress = (Tone.Transport.seconds % duration) / duration;
+          // On calcule la progression basée sur le temps réel écoulé depuis le START,
+          // et non sur le Transport qui boucle toutes les 1 ou 2 mesures.
+          const elapsedTime = Tone.now() - backingStartTimeRef.current;
+          const progress = (elapsedTime % duration) / duration;
           drawWaveform(buffer, progress);
         }
       }
@@ -271,10 +295,8 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
       await Tone.start();
       if (Tone.context.state !== 'running') await Tone.context.resume();
       Tone.Transport.start();
-      loopRef.current?.start(0);
     } else {
       Tone.Transport.stop();
-      loopRef.current?.stop(Tone.now()); // Correction du crash Tone.js
       setCurrentStep(0);
     }
     setIsPlaying(!isPlaying);
@@ -309,7 +331,7 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
     console.log(`Envoi du fichier: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} Mo)`);
 
     try {
-      const response = await fetch('http://localhost:8080/api/audio/analyze-bpm', {
+      const response = await fetch('http://127.0.0.1:8080/api/audio/analyze-bpm', {
         method: 'POST',
         body: formData,
       });
@@ -423,6 +445,7 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
       newTracks[index].isMuted = !newTracks[index].isMuted;
       return newTracks;
     });
+    sendMessage('TRACK_MUTED', { trackIndex: index, isMuted: !tracks[index].isMuted });
   };
 
   const handleRemoveTrack = (index: number) => {
@@ -431,12 +454,13 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
   };
 
   const toggleStep = (trackIndex: number, stepIndex: number) => {
-    const newGrid = [...grid];
-    newGrid[trackIndex][stepIndex] = !newGrid[trackIndex][stepIndex];
-    const newState = newGrid[trackIndex][stepIndex];
+    // Correction de l'immutabilité pour éviter les bugs de référence
+    const newState = !grid[trackIndex][stepIndex];
+    const newGrid = grid.map((row, rIdx) => 
+      rIdx === trackIndex ? row.map((s, sIdx) => sIdx === stepIndex ? newState : s) : row
+    );
+
     setGrid(newGrid);
-    
-    // Broadcast du changement
     sendMessage('NOTE_TOGGLED', { trackIndex, stepIndex, active: newState });
   };
 
