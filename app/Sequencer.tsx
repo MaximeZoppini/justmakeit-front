@@ -91,7 +91,7 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
 
   // --- AUDIO ENGINE ---
 
-  // 1. Initialize Players (Tracks) - Uniquement quand le nombre de pistes change
+  // Initialize Tone.js Players
   useEffect(() => {
     if (playersRef.current.length !== tracks.length) {
       playersRef.current.forEach(p => p?.dispose());
@@ -100,12 +100,9 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
           return new Tone.Player({
             url: track.url,
             mute: track.isMuted,
-            onload: () => console.log(`✅ ${track.name} chargé !`),
+            onload: () => {},
             onerror: (e: Error) => {
-              console.error(`❌ Erreur de chargement ${track.name}:`, e);
-              if (track.url && e.message && e.message.includes('EncodingError')) {
-                console.warn(`💡 CONSEIL: Le fichier "${track.url.split('/').pop()}" a peut-être un format non supporté.`);
-              }
+              console.error(`Error loading track ${track.name}:`, e);
             }
           }).toDestination();
         }
@@ -114,14 +111,14 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
     }
   }, [tracks.length]);
 
-  // 2. Setup Sequence Loop - Se recrée si totalSteps ou le nombre de pistes change
+  // Setup sequencer loop matrix
   useEffect(() => {
     if (loopRef.current) loopRef.current.dispose();
 
     loopRef.current = new Tone.Sequence((time, step) => {
         setCurrentStep(step);
         
-        // Ajout d'une sécurité pour éviter de lire une ligne qui n'existe plus (pendant un remove)
+
         const currentGrid = gridRef.current;
         currentGrid.forEach((trackSteps, trackIndex) => {
           if (trackSteps && trackSteps[step]) {
@@ -145,7 +142,7 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
     };
   }, [totalSteps, tracks.length]);
 
-  // 3. Nettoyage global au démontage du composant
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       playersRef.current.forEach(p => p?.dispose());
@@ -175,7 +172,7 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
     };
   }, [backingLoop?.url]);
 
-  // Gestion manuelle du Play/Stop pour la boucle mélodique (indépendante du Transport loop)
+  // Independent playback for melodic backing loops
   useEffect(() => {
     if (backingPlayerRef.current && backingPlayerRef.current.loaded) {
       if (isPlaying) {
@@ -301,13 +298,8 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
     } else {
         playersRef.current[index] = new Tone.Player({
             url: newUrl,
-            onload: () => console.log(`✅ Track ${index} (nouveau) chargé !`),
-            onerror: (e: Error) => {
-              console.error(`❌ Erreur Track ${index}:`, e);
-              if (e.message && e.message.includes('EncodingError')) {
-                console.warn(`💡 CONSEIL: Vérifiez le format du fichier "${newUrl.split('/').pop()}".`);
-              }
-            }
+            onload: () => {},
+            onerror: (e: Error) => console.error(`Error loading custom track ${index}:`, e)
         }).toDestination();
     }
   };
@@ -315,7 +307,7 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
   const sendFileToBackend = async (file: File) => {
     const formData = new FormData();
     formData.append('file', file);
-    console.log(`Envoi du fichier: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} Mo)`);
+
 
     try {
       const response = await fetch('http://127.0.0.1:8080/api/audio/analyze-bpm', {

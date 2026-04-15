@@ -4,7 +4,7 @@ import Sequencer from "./Sequencer";
 
 import { Library } from '../types';
 
-// Fonction exécutée côté serveur pour lister les fichiers
+// Server-side library initialization
 function getSampleLibrary() {
   const samplesDir = path.join(process.cwd(), 'public', 'samples');
   const library: Library = {
@@ -22,7 +22,7 @@ function getSampleLibrary() {
         const folderName = item.name.toLowerCase();
         let category = '';
 
-        // Mapping des dossiers vers les catégories d'instruments
+
         if (folderName.includes('kick')) category = 'Kick';
         else if (folderName.includes('snare')) category = 'Snare';
         else if (folderName.includes('hat')) category = 'Hi-Hat';

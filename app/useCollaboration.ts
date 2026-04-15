@@ -8,7 +8,7 @@ export const useCollaboration = (projectId: string, onMessageReceived?: (msg: Co
   const [myIdentity, setMyIdentity] = useState<string>("");
   const stompClient = useRef<Client | null>(null);
 
-  // Génère ou récupère un ID unique pour ce navigateur (Device ID)
+  // Client-side local storage device ID generation
   const getDeviceId = () => {
     if (typeof window === 'undefined') return '';
     let id = localStorage.getItem('justmakeit_device_id');
@@ -30,11 +30,11 @@ export const useCollaboration = (projectId: string, onMessageReceived?: (msg: Co
     client.onConnect = () => {
       setIsConnected(true);
 
-      // S'abonner aux mises à jour du projet spécifique
+      // Subscribe to target collaboration project sync
       client.subscribe(`/topic/project/${projectId}`, (payload) => {
         const message = JSON.parse(payload.body);
-        
-        // Si le message confirme notre propre arrivée, on enregistre notre nom "Maker X"
+
+        // Update identity when local join broadcasts back
         if (message.type === 'JOIN' && message.deviceId === getDeviceId()) {
           setMyIdentity(message.sender);
         }
@@ -44,7 +44,7 @@ export const useCollaboration = (projectId: string, onMessageReceived?: (msg: Co
         }
       });
 
-      // Signaler notre arrivée au serveur
+      // Send handshake initialization payload
       client.publish({
         destination: `/app/sync/${projectId}`,
         body: JSON.stringify({
