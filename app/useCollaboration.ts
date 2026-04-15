@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import SockJS from 'sockjs-client';
 import { Client } from '@stomp/stompjs';
 import { CollaborationMessage, CollaborationMessageType, CollaborationPayloads } from '../types';
+import { createStompClient } from '../utils/stompClient';
 
 export const useCollaboration = (projectId: string, onMessageReceived?: (msg: CollaborationMessage) => void) => {
   const [isConnected, setIsConnected] = useState(false);
@@ -20,48 +20,19 @@ export const useCollaboration = (projectId: string, onMessageReceived?: (msg: Co
   };
 
   useEffect(() => {
-    const client = new Client({
-      webSocketFactory: () => new SockJS('http://127.0.0.1:8080/ws-justmakeit'),
-      reconnectDelay: 5000,
-      heartbeatIncoming: 4000,
-      heartbeatOutgoing: 4000,
+    const client = createStompClient({
+      projectId,
+      deviceId: getDeviceId(),
+      onConnect: () => setIsConnected(true),
+      onIdentityReceived: setMyIdentity,
+      onMessageReceived
     });
 
-    client.onConnect = () => {
-      setIsConnected(true);
-
-      // Subscribe to target collaboration project sync
-      client.subscribe(`/topic/project/${projectId}`, (payload) => {
-        const message = JSON.parse(payload.body);
-
-        // Update identity when local join broadcasts back
-        if (message.type === 'JOIN' && message.deviceId === getDeviceId()) {
-          setMyIdentity(message.sender);
-        }
-
-        if (onMessageReceived) {
-          onMessageReceived(message);
-        }
-      });
-
-      // Send handshake initialization payload
-      client.publish({
-        destination: `/app/sync/${projectId}`,
-        body: JSON.stringify({
-          type: 'JOIN',
-          projectId,
-          deviceId: getDeviceId(),
-          payload: {}
-        })
-      });
-    };
-
-    client.onDisconnect = () => setIsConnected(false);
     client.activate();
     stompClient.current = client;
 
     return () => {
-      client.deactivate();
+      if (client.active) client.deactivate();
     };
   }, [projectId]);
 

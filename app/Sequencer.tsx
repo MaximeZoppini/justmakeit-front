@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import * as Tone from 'tone';
 import { useCollaboration } from './useCollaboration';
+import { drawWaveform } from '../utils/waveform';
 
 import { Library, Track, BackingLoop, CollaborationMessage } from '../types';
 
@@ -157,7 +158,7 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
         loop: true,
         mute: backingLoop.isMuted,
         onload: () => {
-           drawWaveform(player.buffer);
+           drawWaveform(canvasRef.current, player.buffer);
            // On ne synchronise plus au Transport pour éviter que la boucle du séquenceur (16/32 steps) ne coupe le sample
            if (isPlaying) player.start();
         }
@@ -200,46 +201,7 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
   }, [backingLoop?.isMuted]);
 
   // --- VISUALIZATION ---
-  const drawWaveform = (buffer: Tone.ToneAudioBuffer, playhead = -1) => {
-    const canvas = canvasRef.current;
-    if (!canvas || !buffer) return;
 
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const width = canvas.width;
-    const height = canvas.height;
-    const data = buffer.getChannelData(0);
-    const step = Math.ceil(data.length / width);
-    const amp = height / 2;
-
-    ctx.clearRect(0, 0, width, height);
-    ctx.fillStyle = '#a855f7'; // Purple-500
-    
-    for (let i = 0; i < width; i++) {
-      let min = 1.0;
-      let max = -1.0;
-      
-      for (let j = 0; j < step; j++) {
-        const index = (i * step) + j;
-        if (index < data.length) {
-          const datum = data[index];
-          if (datum < min) min = datum;
-          if (datum > max) max = datum;
-        }
-      }
-      
-      const y = (1 + min) * amp;
-      const h = Math.max(1, (max - min) * amp);
-      ctx.fillRect(i, y, 1, h);
-    }
-
-    if (playhead >= 0 && playhead <= 1) {
-      const x = playhead * width;
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-      ctx.fillRect(x, 0, 2, height);
-    }
-  };
 
   useEffect(() => {
     let animationId: number = 0;
@@ -253,7 +215,7 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
           // et non sur le Transport qui boucle toutes les 1 ou 2 mesures.
           const elapsedTime = Tone.now() - backingStartTimeRef.current;
           const progress = (elapsedTime % duration) / duration;
-          drawWaveform(buffer, progress);
+          drawWaveform(canvasRef.current, buffer, progress);
         }
       }
       animationId = requestAnimationFrame(animate);
@@ -264,7 +226,7 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
     } else {
       cancelAnimationFrame(animationId);
       if (backingPlayerRef.current?.loaded) {
-        drawWaveform(backingPlayerRef.current.buffer, 0);
+        drawWaveform(canvasRef.current, backingPlayerRef.current.buffer, 0);
       }
     }
 
