@@ -4,26 +4,13 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import * as Tone from 'tone';
 import { useCollaboration } from './useCollaboration';
 
-type Sample = { name: string; url: string };
-type Library = Record<string, Sample[]>;
+import { Library, Track, BackingLoop, CollaborationMessage } from '../types';
 
 interface SequencerProps {
   initialLibrary: Library;
   projectId?: string;
 }
 
-interface Track {
-  name: string;
-  url: string | undefined;
-  isMuted: boolean;
-  isCustom?: boolean;
-}
-
-interface BackingLoop {
-  name: string;
-  url: string;
-  isMuted: boolean;
-}
 
 const INSTRUMENT_NAMES = ['Kick', 'Snare', 'Hi-Hat', 'Clap'];
 const STEPS = 16;
@@ -80,7 +67,7 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
   }, [bpm, totalSteps]);
 
   // --- COLLABORATION ---
-  const handleIncomingUpdate = useCallback((msg: any) => {
+  const handleIncomingUpdate = useCallback((msg: CollaborationMessage) => {
     if (msg.type === 'NOTE_TOGGLED') {
       const { trackIndex, stepIndex, active } = msg.payload;
       setGrid(prev => {

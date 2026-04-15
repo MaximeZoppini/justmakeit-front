@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import SockJS from 'sockjs-client';
 import { Client } from '@stomp/stompjs';
+import { CollaborationMessage } from '../types';
 
-export const useCollaboration = (projectId: string, onMessageReceived?: (msg: any) => void) => {
+export const useCollaboration = (projectId: string, onMessageReceived?: (msg: CollaborationMessage) => void) => {
   const [isConnected, setIsConnected] = useState(false);
   const [myIdentity, setMyIdentity] = useState<string>("");
   const stompClient = useRef<Client | null>(null);
@@ -20,7 +21,7 @@ export const useCollaboration = (projectId: string, onMessageReceived?: (msg: an
 
   useEffect(() => {
     const client = new Client({
-      webSocketFactory: () => new SockJS('http://localhost:8080/ws-justmakeit'),
+      webSocketFactory: () => new SockJS('http://127.0.0.1:8080/ws-justmakeit'),
       reconnectDelay: 5000,
       heartbeatIncoming: 4000,
       heartbeatOutgoing: 4000,
