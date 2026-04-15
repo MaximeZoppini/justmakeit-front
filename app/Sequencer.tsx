@@ -360,13 +360,15 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
     }
   };
 
+  const getAudioFiles = (e: React.DragEvent) => {
+    return Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('audio/') || f.name.match(/\.(wav|mp3)$/i));
+  };
+
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
     
-    const files = Array.from(e.dataTransfer.files);
-    const audioFiles = files.filter(f => f.type.startsWith('audio/') || f.name.match(/\.(wav|mp3)$/i));
-    
+    const audioFiles = getAudioFiles(e);
     if (audioFiles.length === 0) return;
 
     // Test communication pour le premier fichier déposé
@@ -388,8 +390,7 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
     e.stopPropagation();
     setIsDragging(false);
     
-    const files = Array.from(e.dataTransfer.files);
-    const audioFile = files.find(f => f.type.startsWith('audio/') || f.name.match(/\.(wav|mp3)$/i));
+    const audioFile = getAudioFiles(e)[0];
     
     if (audioFile) {
       sendFileToBackend(audioFile);
@@ -401,42 +402,30 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
     }
   };
 
-  const handleExpand = () => {
-    if (totalSteps === 32) return;
-    setTotalSteps(32);
-    setGrid(prev => prev.map(row => [...row, ...row]));
-  };
-
-  const handleCollapse = () => {
-    if (totalSteps === 16) return;
-    setTotalSteps(16);
-    setGrid(prev => prev.map(row => row.slice(0, STEPS)));
+  const changeGridSize = (newSize: number) => {
+    if (totalSteps === newSize) return;
+    setTotalSteps(newSize);
+    setGrid(prev => prev.map(row => newSize === 32 ? [...row, ...row] : row.slice(0, STEPS)));
   };
 
   const handleClearAll = () => {
     setGrid(tracks.map(() => Array(totalSteps).fill(false)));
   };
 
-  const fillTrack = (trackIndex: number, interval: number, pageIndex = 0) => {
+  const updateTrackGrid = (trackIndex: number, pageIndex: number, modifier: (stepIdx: number, val: boolean) => boolean) => {
     const start = pageIndex * STEPS;
     const end = start + STEPS;
-    const newGrid = grid.map((row, rIdx) => {
-      if (rIdx === trackIndex) {
-        return row.map((val, stepIdx) => (stepIdx >= start && stepIdx < end) ? stepIdx % interval === 0 : val);
-      }
-      return row;
-    });
-    setGrid(newGrid);
+    setGrid(prev => prev.map((row, rIdx) => 
+      rIdx === trackIndex ? row.map((val, stepIdx) => (stepIdx >= start && stepIdx < end) ? modifier(stepIdx, val) : val) : row
+    ));
+  };
+
+  const fillTrack = (trackIndex: number, interval: number, pageIndex = 0) => {
+    updateTrackGrid(trackIndex, pageIndex, (stepIdx) => stepIdx % interval === 0);
   };
 
   const clearTrack = (trackIndex: number, pageIndex = 0) => {
-    const start = pageIndex * STEPS;
-    const end = start + STEPS;
-    const newGrid = grid.map((row, rIdx) => {
-      if (rIdx === trackIndex) return row.map((val, stepIdx) => (stepIdx >= start && stepIdx < end) ? false : val);
-      return row;
-    });
-    setGrid(newGrid);
+    updateTrackGrid(trackIndex, pageIndex, () => false);
   };
 
   const toggleMute = (index: number) => {
@@ -533,21 +522,12 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
             Clear All
           </button>
 
-          {totalSteps === 16 ? (
-            <button 
-              onClick={handleExpand}
-              className="px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-full text-sm font-semibold transition-all border border-gray-700"
-            >
-              Expand to 32
-            </button>
-          ) : (
-            <button 
-              onClick={handleCollapse}
-              className="px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-full text-sm font-semibold transition-all border border-gray-700"
-            >
-              Back to 16
-            </button>
-          )}
+          <button 
+            onClick={() => changeGridSize(totalSteps === 16 ? 32 : 16)}
+            className="px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-full text-sm font-semibold transition-all border border-gray-700"
+          >
+            {totalSteps === 16 ? 'Expand to 32' : 'Back to 16'}
+          </button>
           <button
             onClick={togglePlay}
             className={`px-6 py-2 rounded-full font-bold transition-colors ${
