@@ -1,13 +1,23 @@
 export type Sample = { name: string; url: string };
 export type Library = Record<string, Sample[]>;
 
-export interface CollaborationMessage {
-  sender?: string;
-  type: string;
-  projectId: string;
-  deviceId: string;
-  payload: any;
+export interface CollaborationPayloads {
+  JOIN: Record<string, never>;
+  NOTE_TOGGLED: { trackIndex: number; stepIndex: number; active: boolean };
+  BPM_CHANGED: { bpm: number };
 }
+
+export type CollaborationMessageType = keyof CollaborationPayloads;
+
+export type CollaborationMessage = {
+  [K in CollaborationMessageType]: {
+    sender?: string;
+    type: K;
+    projectId: string;
+    deviceId: string;
+    payload: CollaborationPayloads[K];
+  }
+}[CollaborationMessageType];
 
 export interface Track {
   id?: number;

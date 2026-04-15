@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import SockJS from 'sockjs-client';
 import { Client } from '@stomp/stompjs';
-import { CollaborationMessage } from '../types';
+import { CollaborationMessage, CollaborationMessageType, CollaborationPayloads } from '../types';
 
 export const useCollaboration = (projectId: string, onMessageReceived?: (msg: CollaborationMessage) => void) => {
   const [isConnected, setIsConnected] = useState(false);
@@ -65,7 +65,7 @@ export const useCollaboration = (projectId: string, onMessageReceived?: (msg: Co
     };
   }, [projectId]);
 
-  const sendMessage = (type: string, payload: any) => {
+  const sendMessage = <T extends CollaborationMessageType>(type: T, payload: CollaborationPayloads[T]) => {
     if (stompClient.current?.connected) {
       stompClient.current.publish({
         destination: `/app/sync/${projectId}`,
