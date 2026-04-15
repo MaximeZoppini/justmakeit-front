@@ -421,7 +421,6 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
       newTracks[index].isMuted = !newTracks[index].isMuted;
       return newTracks;
     });
-    sendMessage('TRACK_MUTED', { trackIndex: index, isMuted: !tracks[index].isMuted });
   };
 
   const handleRemoveTrack = (index: number) => {
