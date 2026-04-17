@@ -1,1 +1,4 @@
+# Run lint, format, and tests before committing
+npm run lint && npm run format && npm test
+# Then run lint-staged on staged files
 npx lint-staged

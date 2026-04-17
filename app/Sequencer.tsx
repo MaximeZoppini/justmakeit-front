@@ -61,7 +61,9 @@ export default function Sequencer({
 
   // Sync BPM
   useEffect(() => {
-    Tone.Transport.bpm.value = bpm;
+    if (Tone.Transport?.bpm) {
+      Tone.Transport.bpm.value = bpm;
+    }
     // On définit la boucle du Transport pour qu'elle corresponde à la grille
     // 16 steps = 1 mesure ("1m"), 32 steps = 2 mesures ("2m")
     Tone.Transport.loop = true;
