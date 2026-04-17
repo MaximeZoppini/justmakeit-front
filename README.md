@@ -45,9 +45,14 @@ NEXT_PUBLIC_WS_URL=ws://localhost:8080/ws-justmakeit
     npm install
     ```
 2.  Lancer le serveur de développement :
+
     ```bash
     npm run dev
     ```
+
     > L'interface sera accessible sur [http://localhost:3000](http://localhost:3000).
+
+3.  Lancer les tests :
+    npm run test:coverage
 
 _Built by [Maxime Zoppini] - 2026_
