@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import * as Tone from 'tone';
@@ -12,22 +12,24 @@ interface SequencerProps {
   projectId?: string;
 }
 
-
 const INSTRUMENT_NAMES = ['Kick', 'Snare', 'Hi-Hat', 'Clap'];
 const STEPS = 16;
 
-export default function Sequencer({ initialLibrary, projectId = "default-room" }: SequencerProps) {
+export default function Sequencer({
+  initialLibrary,
+  projectId = 'default-room',
+}: SequencerProps) {
   // --- STATE ---
   const [totalSteps, setTotalSteps] = useState(STEPS);
   const [tracks, setTracks] = useState<Track[]>(() => {
     return INSTRUMENT_NAMES.map((name, index) => {
-      const samples = initialLibrary[name] || []; 
+      const samples = initialLibrary[name] || [];
       return {
         id: index,
         name,
         url: samples.length > 0 ? samples[0].url : undefined,
         isMuted: false,
-        isCustom: false
+        isCustom: false,
       };
     });
   });
@@ -39,8 +41,8 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
   const [detectedBpm, setDetectedBpm] = useState<number | null>(null);
   const [backendMessage, setBackendMessage] = useState<string | null>(null);
   const [backingLoop, setBackingLoop] = useState<BackingLoop | null>(null);
-  
-  const [grid, setGrid] = useState<boolean[][]>(() => 
+
+  const [grid, setGrid] = useState<boolean[][]>(() =>
     INSTRUMENT_NAMES.map(() => Array(STEPS).fill(false))
   );
 
@@ -64,14 +66,14 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
     // 16 steps = 1 mesure ("1m"), 32 steps = 2 mesures ("2m")
     Tone.Transport.loop = true;
     Tone.Transport.loopStart = 0;
-    Tone.Transport.loopEnd = totalSteps === 16 ? "1m" : "2m";
+    Tone.Transport.loopEnd = totalSteps === 16 ? '1m' : '2m';
   }, [bpm, totalSteps]);
 
   // --- COLLABORATION ---
   const handleIncomingUpdate = useCallback((msg: CollaborationMessage) => {
     if (msg.type === 'NOTE_TOGGLED') {
       const { trackIndex, stepIndex, active } = msg.payload;
-      setGrid(prev => {
+      setGrid((prev) => {
         const newGrid = [...prev];
         newGrid[trackIndex] = [...newGrid[trackIndex]];
         newGrid[trackIndex][stepIndex] = active;
@@ -83,7 +85,10 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
     }
   }, []);
 
-  const { sendMessage, isConnected, myIdentity } = useCollaboration(projectId, handleIncomingUpdate);
+  const { sendMessage, isConnected, myIdentity } = useCollaboration(
+    projectId,
+    handleIncomingUpdate
+  );
 
   const broadcastBpm = (newBpm: number) => {
     setBpm(newBpm);
@@ -95,7 +100,7 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
   // Initialize Tone.js Players
   useEffect(() => {
     if (playersRef.current.length !== tracks.length) {
-      playersRef.current.forEach(p => p?.dispose());
+      playersRef.current.forEach((p) => p?.dispose());
       playersRef.current = tracks.map((track) => {
         if (track.url) {
           return new Tone.Player({
@@ -104,7 +109,7 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
             onload: () => {},
             onerror: (e: Error) => {
               console.error(`Error loading track ${track.name}:`, e);
-            }
+            },
           }).toDestination();
         }
         return null;
@@ -116,9 +121,9 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
   useEffect(() => {
     if (loopRef.current) loopRef.current.dispose();
 
-    loopRef.current = new Tone.Sequence((time, step) => {
+    loopRef.current = new Tone.Sequence(
+      (time, step) => {
         setCurrentStep(step);
-        
 
         const currentGrid = gridRef.current;
         currentGrid.forEach((trackSteps, trackIndex) => {
@@ -132,9 +137,9 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
         });
       },
       Array.from({ length: totalSteps }, (_, i) => i),
-      "16n"
+      '16n'
     );
-    
+
     // On programme la séquence pour qu'elle soit prête sur le Transport à la position 0
     loopRef.current.start(0);
 
@@ -146,7 +151,7 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      playersRef.current.forEach(p => p?.dispose());
+      playersRef.current.forEach((p) => p?.dispose());
     };
   }, []);
 
@@ -158,10 +163,10 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
         loop: true,
         mute: backingLoop.isMuted,
         onload: () => {
-           drawWaveform(canvasRef.current, player.buffer);
-           // On ne synchronise plus au Transport pour éviter que la boucle du séquenceur (16/32 steps) ne coupe le sample
-           if (isPlaying) player.start();
-        }
+          drawWaveform(canvasRef.current, player.buffer);
+          // On ne synchronise plus au Transport pour éviter que la boucle du séquenceur (16/32 steps) ne coupe le sample
+          if (isPlaying) player.start();
+        },
       }).toDestination();
 
       backingPlayerRef.current = player;
@@ -202,12 +207,15 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
 
   // --- VISUALIZATION ---
 
-
   useEffect(() => {
     let animationId: number = 0;
 
     const animate = () => {
-      if (isPlaying && backingPlayerRef.current && backingPlayerRef.current.loaded) {
+      if (
+        isPlaying &&
+        backingPlayerRef.current &&
+        backingPlayerRef.current.loaded
+      ) {
         const buffer = backingPlayerRef.current.buffer;
         const duration = buffer.duration;
         if (duration > 0) {
@@ -249,20 +257,21 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
   };
 
   const handleSampleChange = (index: number, newUrl: string) => {
-    setTracks(prev => {
+    setTracks((prev) => {
       const newTracks = [...prev];
       newTracks[index] = { ...newTracks[index], url: newUrl };
       return newTracks;
     });
-    
+
     if (playersRef.current[index]) {
-        playersRef.current[index]?.load(newUrl);
+      playersRef.current[index]?.load(newUrl);
     } else {
-        playersRef.current[index] = new Tone.Player({
-            url: newUrl,
-            onload: () => {},
-            onerror: (e: Error) => console.error(`Error loading custom track ${index}:`, e)
-        }).toDestination();
+      playersRef.current[index] = new Tone.Player({
+        url: newUrl,
+        onload: () => {},
+        onerror: (e: Error) =>
+          console.error(`Error loading custom track ${index}:`, e),
+      }).toDestination();
     }
   };
 
@@ -270,21 +279,23 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
     const formData = new FormData();
     formData.append('file', file);
 
-
     try {
-      const response = await fetch('http://127.0.0.1:8080/api/audio/analyze-bpm', {
-        method: 'POST',
-        body: formData,
-      });
+      const response = await fetch(
+        'http://127.0.0.1:8080/api/audio/analyze-bpm',
+        {
+          method: 'POST',
+          body: formData,
+        }
+      );
       const data = await response.json();
       setBackendMessage(data.serverMessage);
       if (data.bpm) setDetectedBpm(data.bpm);
-      
+
       // Effacer le message après 5 secondes
       setTimeout(() => setBackendMessage(null), 5000);
     } catch (error) {
-      console.error("Erreur analyse BPM", error);
-      setBackendMessage("Erreur de connexion au backend");
+      console.error('Erreur analyse BPM', error);
+      setBackendMessage('Erreur de connexion au backend');
     }
   };
 
@@ -302,43 +313,48 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
   };
 
   const getAudioFiles = (e: React.DragEvent) => {
-    return Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('audio/') || f.name.match(/\.(wav|mp3)$/i));
+    return Array.from(e.dataTransfer.files).filter(
+      (f) => f.type.startsWith('audio/') || f.name.match(/\.(wav|mp3)$/i)
+    );
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    
+
     const audioFiles = getAudioFiles(e);
     if (audioFiles.length === 0) return;
 
     // Test communication pour le premier fichier déposé
     sendFileToBackend(audioFiles[0]);
 
-    const newTracks = audioFiles.map(file => ({
-      name: file.name.replace(/\.[^/.]+$/, ""),
+    const newTracks = audioFiles.map((file) => ({
+      name: file.name.replace(/\.[^/.]+$/, ''),
       url: URL.createObjectURL(file),
       isMuted: false,
-      isCustom: true
+      isCustom: true,
     }));
 
-    setTracks(prev => [...prev, ...newTracks]);
-    setGrid(prev => [...prev, ...newTracks.map(() => Array(totalSteps).fill(false))]);
+    setTracks((prev) => [...prev, ...newTracks]);
+    setGrid((prev) => [
+      ...prev,
+      ...newTracks.map(() => Array(totalSteps).fill(false)),
+    ]);
   };
 
   const handleLoopDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
-    
+
     const audioFile = getAudioFiles(e)[0];
-    
+
     if (audioFile) {
       sendFileToBackend(audioFile);
       setBackingLoop({
         name: audioFile.name,
         url: URL.createObjectURL(audioFile),
-        isMuted: false
+        isMuted: false,
       });
     }
   };
@@ -346,23 +362,41 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
   const changeGridSize = (newSize: number) => {
     if (totalSteps === newSize) return;
     setTotalSteps(newSize);
-    setGrid(prev => prev.map(row => newSize === 32 ? [...row, ...row] : row.slice(0, STEPS)));
+    setGrid((prev) =>
+      prev.map((row) =>
+        newSize === 32 ? [...row, ...row] : row.slice(0, STEPS)
+      )
+    );
   };
 
   const handleClearAll = () => {
     setGrid(tracks.map(() => Array(totalSteps).fill(false)));
   };
 
-  const updateTrackGrid = (trackIndex: number, pageIndex: number, modifier: (stepIdx: number, val: boolean) => boolean) => {
+  const updateTrackGrid = (
+    trackIndex: number,
+    pageIndex: number,
+    modifier: (stepIdx: number, val: boolean) => boolean
+  ) => {
     const start = pageIndex * STEPS;
     const end = start + STEPS;
-    setGrid(prev => prev.map((row, rIdx) => 
-      rIdx === trackIndex ? row.map((val, stepIdx) => (stepIdx >= start && stepIdx < end) ? modifier(stepIdx, val) : val) : row
-    ));
+    setGrid((prev) =>
+      prev.map((row, rIdx) =>
+        rIdx === trackIndex
+          ? row.map((val, stepIdx) =>
+              stepIdx >= start && stepIdx < end ? modifier(stepIdx, val) : val
+            )
+          : row
+      )
+    );
   };
 
   const fillTrack = (trackIndex: number, interval: number, pageIndex = 0) => {
-    updateTrackGrid(trackIndex, pageIndex, (stepIdx) => stepIdx % interval === 0);
+    updateTrackGrid(
+      trackIndex,
+      pageIndex,
+      (stepIdx) => stepIdx % interval === 0
+    );
   };
 
   const clearTrack = (trackIndex: number, pageIndex = 0) => {
@@ -370,7 +404,7 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
   };
 
   const toggleMute = (index: number) => {
-    setTracks(prev => {
+    setTracks((prev) => {
       const newTracks = [...prev];
       newTracks[index].isMuted = !newTracks[index].isMuted;
       return newTracks;
@@ -378,15 +412,17 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
   };
 
   const handleRemoveTrack = (index: number) => {
-    setTracks(prev => prev.filter((_, i) => i !== index));
-    setGrid(prev => prev.filter((_, i) => i !== index));
+    setTracks((prev) => prev.filter((_, i) => i !== index));
+    setGrid((prev) => prev.filter((_, i) => i !== index));
   };
 
   const toggleStep = (trackIndex: number, stepIndex: number) => {
     // Correction de l'immutabilité pour éviter les bugs de référence
     const newState = !grid[trackIndex][stepIndex];
-    const newGrid = grid.map((row, rIdx) => 
-      rIdx === trackIndex ? row.map((s, sIdx) => sIdx === stepIndex ? newState : s) : row
+    const newGrid = grid.map((row, rIdx) =>
+      rIdx === trackIndex
+        ? row.map((s, sIdx) => (sIdx === stepIndex ? newState : s))
+        : row
     );
 
     setGrid(newGrid);
@@ -400,9 +436,12 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
   };
 
   return (
-    <div 
+    <div
       className={`w-full max-w-6xl mx-auto mt-10 p-6 bg-gray-900 text-white rounded-xl shadow-2xl transition-all ${isDragging ? 'border-2 border-purple-500 bg-gray-800' : ''}`}
-      onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+      onDragOver={(e) => {
+        e.preventDefault();
+        setIsDragging(true);
+      }}
       onDragLeave={() => setIsDragging(false)}
       onDrop={handleDrop}
     >
@@ -411,7 +450,9 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
         <div className="flex flex-col">
           <h2 className="text-2xl font-bold text-purple-400">JustMakeIt !</h2>
           <div className="flex items-center gap-2 mt-1">
-            <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
+            <div
+              className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}
+            />
             <span className="text-[10px] font-mono text-gray-400 uppercase tracking-widest">
               {isConnected ? `${myIdentity} • CONNECTÉ` : 'HORS LIGNE'}
             </span>
@@ -423,46 +464,64 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
           <div className="flex flex-col items-center gap-1">
             <div className="flex items-center gap-2">
               <span className="text-xs text-gray-400 font-mono">BPM:</span>
-              <input 
-                type="number" 
-                value={bpm} 
+              <input
+                type="number"
+                value={bpm}
                 onChange={(e) => broadcastBpm(Number(e.target.value))}
                 className="w-12 bg-gray-800 text-white text-xs rounded px-1 border border-gray-700 focus:border-purple-500 outline-none text-center"
               />
             </div>
-            <input 
-              type="range" 
-              min="60" 
-              max="180" 
-              value={bpm} 
+            <input
+              type="range"
+              min="60"
+              max="180"
+              value={bpm}
               onChange={(e) => broadcastBpm(Number(e.target.value))}
               className="w-32 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-purple-500"
             />
             <div className="flex gap-1">
-              {[90, 110, 120, 140].map(p => (
-                <button key={p} onClick={() => broadcastBpm(p)} className={`text-[10px] px-1.5 rounded border border-gray-700 transition-colors ${bpm === p ? 'bg-purple-900 text-purple-200 border-purple-700' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}>{p}</button>
+              {[90, 110, 120, 140].map((p) => (
+                <button
+                  key={p}
+                  onClick={() => broadcastBpm(p)}
+                  className={`text-[10px] px-1.5 rounded border border-gray-700 transition-colors ${bpm === p ? 'bg-purple-900 text-purple-200 border-purple-700' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}
+                >
+                  {p}
+                </button>
               ))}
             </div>
           </div>
 
           <div className="flex gap-2">
-            <button onClick={copyInviteLink} className="px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-full text-sm font-semibold border border-gray-700">
+            <button
+              onClick={copyInviteLink}
+              className="px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-full text-sm font-semibold border border-gray-700"
+            >
               Inviter 🔗
             </button>
-            <input type="file" accept=".wav" onChange={handleFileUpload} className="hidden" id="audio-upload-main" />
-            <label htmlFor="audio-upload-main" className="px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded-full text-sm font-semibold cursor-pointer">
+            <input
+              type="file"
+              accept=".wav"
+              onChange={handleFileUpload}
+              className="hidden"
+              id="audio-upload-main"
+            />
+            <label
+              htmlFor="audio-upload-main"
+              className="px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded-full text-sm font-semibold cursor-pointer"
+            >
               Analyser WAV
             </label>
           </div>
 
-          <button 
+          <button
             onClick={handleClearAll}
             className="px-4 py-2 bg-red-900/30 hover:bg-red-800/50 text-red-200 rounded-full text-sm font-semibold transition-all border border-red-900/50"
           >
             Clear All
           </button>
 
-          <button 
+          <button
             onClick={() => changeGridSize(totalSteps === 16 ? 32 : 16)}
             className="px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-full text-sm font-semibold transition-all border border-gray-700"
           >
@@ -471,7 +530,9 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
           <button
             onClick={togglePlay}
             className={`px-6 py-2 rounded-full font-bold transition-colors ${
-              isPlaying ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'
+              isPlaying
+                ? 'bg-red-500 hover:bg-red-600'
+                : 'bg-green-500 hover:bg-green-600'
             }`}
           >
             {isPlaying ? 'STOP' : 'PLAY'}
@@ -486,15 +547,21 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
       )}
 
       {detectedBpm && (
-        <button onClick={applyDetectedBpm} className="w-full mb-6 p-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-bold animate-pulse shadow-lg shadow-blue-500/20">
+        <button
+          onClick={applyDetectedBpm}
+          className="w-full mb-6 p-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-bold animate-pulse shadow-lg shadow-blue-500/20"
+        >
           BPM détecté : {detectedBpm} • Cliquer pour synchroniser tout le monde
         </button>
       )}
 
       {/* BACKING LOOP */}
-      <div 
+      <div
         className={`mb-6 p-4 rounded-lg border-2 border-dashed transition-colors ${backingLoop ? 'border-purple-500 bg-purple-900/20' : 'border-gray-700 bg-gray-800/50 hover:border-gray-500'}`}
-        onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }}
         onDrop={handleLoopDrop}
       >
         {!backingLoop ? (
@@ -505,32 +572,45 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <span className="text-purple-300 font-semibold text-sm">Loop:</span>
-                <span className="text-gray-300 text-sm font-mono">{backingLoop.name}</span>
+                <span className="text-purple-300 font-semibold text-sm">
+                  Loop:
+                </span>
+                <span className="text-gray-300 text-sm font-mono">
+                  {backingLoop.name}
+                </span>
               </div>
               <div className="flex gap-2">
-                 <button 
-                    onClick={() => setBackingLoop(prev => prev ? ({ ...prev, isMuted: !prev.isMuted }) : null)}
-                    className={`text-xs px-2 py-1 rounded border ${backingLoop.isMuted ? 'bg-red-900 border-red-700 text-red-200' : 'bg-gray-700 border-gray-600 text-gray-400'}`}
-                  >
-                    {backingLoop.isMuted ? 'Unmute' : 'Mute'}
-                  </button>
-                  <button 
-                    onClick={() => setBackingLoop(null)}
-                    className="text-xs px-2 py-1 rounded bg-gray-800 hover:bg-red-900 text-gray-500 hover:text-red-200 transition-colors"
-                  >
-                    ✕
-                  </button>
+                <button
+                  onClick={() =>
+                    setBackingLoop((prev) =>
+                      prev ? { ...prev, isMuted: !prev.isMuted } : null
+                    )
+                  }
+                  className={`text-xs px-2 py-1 rounded border ${backingLoop.isMuted ? 'bg-red-900 border-red-700 text-red-200' : 'bg-gray-700 border-gray-600 text-gray-400'}`}
+                >
+                  {backingLoop.isMuted ? 'Unmute' : 'Mute'}
+                </button>
+                <button
+                  onClick={() => setBackingLoop(null)}
+                  className="text-xs px-2 py-1 rounded bg-gray-800 hover:bg-red-900 text-gray-500 hover:text-red-200 transition-colors"
+                >
+                  ✕
+                </button>
               </div>
             </div>
-            <canvas ref={canvasRef} width={1000} height={120} className="w-full h-24 bg-gray-900/50 rounded border border-gray-700/50" />
+            <canvas
+              ref={canvasRef}
+              width={1000}
+              height={120}
+              className="w-full h-24 bg-gray-900/50 rounded border border-gray-700/50"
+            />
           </div>
         )}
       </div>
 
       {/* GRID PAGES */}
       {[...Array(totalSteps / STEPS)].map((_, pageIndex) => (
-        <div key={pageIndex} className={pageIndex > 0 ? "mt-8 relative" : ""}>
+        <div key={pageIndex} className={pageIndex > 0 ? 'mt-8 relative' : ''}>
           {pageIndex > 0 && (
             <div className="absolute -top-6 left-0 text-xs text-gray-500 font-mono">
               Steps 17-32
@@ -538,12 +618,20 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
           )}
           <div className="flex flex-col gap-4">
             {tracks.map((track, rowIdx) => (
-              <div key={`${track.name}-${rowIdx}`} className="flex items-center gap-4">
+              <div
+                key={`${track.name}-${rowIdx}`}
+                className="flex items-center gap-4"
+              >
                 {/* Instrument Controls */}
                 <div className="w-32 flex flex-col items-end gap-1">
                   <div className="flex items-center gap-2 w-full justify-end">
-                    <span className="font-mono text-sm text-gray-400 truncate" title={track.name}>{track.name}</span>
-                    <button 
+                    <span
+                      className="font-mono text-sm text-gray-400 truncate"
+                      title={track.name}
+                    >
+                      {track.name}
+                    </span>
+                    <button
                       onClick={() => toggleMute(rowIdx)}
                       className={`text-[10px] px-1.5 py-0.5 rounded border ${track.isMuted ? 'bg-red-900 border-red-700 text-red-200' : 'bg-gray-700 border-gray-600 text-gray-400'}`}
                       title="Mute"
@@ -551,7 +639,7 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
                       M
                     </button>
                     {track.isCustom && (
-                      <button 
+                      <button
                         onClick={() => handleRemoveTrack(rowIdx)}
                         className="text-[10px] px-1.5 py-0.5 rounded bg-gray-800 hover:bg-red-900 text-gray-500 hover:text-red-200 transition-colors"
                         title="Delete Track"
@@ -560,17 +648,21 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
                       </button>
                     )}
                   </div>
-                  
+
                   {/* Dropdown */}
                   {!track.isCustom && initialLibrary[track.name] ? (
-                    <select 
+                    <select
                       className="bg-gray-800 text-white text-[10px] rounded px-1 py-0.5 border border-gray-700 focus:border-purple-500 outline-none w-full"
                       value={track.url || ''}
-                      onChange={(e) => handleSampleChange(rowIdx, e.target.value)}
+                      onChange={(e) =>
+                        handleSampleChange(rowIdx, e.target.value)
+                      }
                     >
-                      {initialLibrary[track.name]?.map(sample => 
-                        <option key={sample.url} value={sample.url}>{sample.name}</option>
-                      )}
+                      {initialLibrary[track.name]?.map((sample) => (
+                        <option key={sample.url} value={sample.url}>
+                          {sample.name}
+                        </option>
+                      ))}
                     </select>
                   ) : (
                     <div className="h-6 w-full"></div>
@@ -578,22 +670,22 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
 
                   {/* Fill/Clear Tools */}
                   <div className="flex gap-1 mt-1 w-full justify-end">
-                    <button 
-                      onClick={() => fillTrack(rowIdx, 4, pageIndex)} 
+                    <button
+                      onClick={() => fillTrack(rowIdx, 4, pageIndex)}
                       className="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-300 px-2 py-1 rounded transition-colors"
                       title="Fill every 4th"
                     >
                       1/4
                     </button>
-                    <button 
-                      onClick={() => fillTrack(rowIdx, 2, pageIndex)} 
+                    <button
+                      onClick={() => fillTrack(rowIdx, 2, pageIndex)}
                       className="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-300 px-2 py-1 rounded transition-colors"
                       title="Fill every 2nd"
                     >
                       1/2
                     </button>
-                    <button 
-                      onClick={() => clearTrack(rowIdx, pageIndex)} 
+                    <button
+                      onClick={() => clearTrack(rowIdx, pageIndex)}
                       className="text-[10px] bg-red-900 hover:bg-red-800 text-red-100 px-2 py-1 rounded transition-colors"
                       title="Clear track"
                     >
@@ -604,23 +696,26 @@ export default function Sequencer({ initialLibrary, projectId = "default-room" }
 
                 {/* Steps */}
                 <div className="flex-1 grid grid-cols-16 gap-1">
-                  {grid[rowIdx].slice(pageIndex * 16, (pageIndex + 1) * 16).map((isActive, localStepIdx) => {
-                    const stepIdx = pageIndex * 16 + localStepIdx;
-                    return (
-                      <button
-                        key={stepIdx}
-                        onClick={() => toggleStep(rowIdx, stepIdx)}
-                        className={`
+                  {grid[rowIdx]
+                    .slice(pageIndex * 16, (pageIndex + 1) * 16)
+                    .map((isActive, localStepIdx) => {
+                      const stepIdx = pageIndex * 16 + localStepIdx;
+                      return (
+                        <button
+                          key={stepIdx}
+                          onClick={() => toggleStep(rowIdx, stepIdx)}
+                          className={`
                           h-14 w-full rounded-sm transition-colors duration-100
-                          ${isActive
-                            ? 'bg-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.5)]'
-                            : `hover:bg-gray-600 ${Math.floor(stepIdx / 4) % 2 === 0 ? 'bg-gray-800' : 'bg-red-950'}`
+                          ${
+                            isActive
+                              ? 'bg-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.5)]'
+                              : `hover:bg-gray-600 ${Math.floor(stepIdx / 4) % 2 === 0 ? 'bg-gray-800' : 'bg-red-950'}`
                           }
                           ${currentStep === stepIdx && isPlaying ? 'border-2 border-white' : ''}
                         `}
-                      />
-                    );
-                  })}
+                        />
+                      );
+                    })}
                 </div>
               </div>
             ))}

@@ -1,11 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import { Client } from '@stomp/stompjs';
-import { CollaborationMessage, CollaborationMessageType, CollaborationPayloads } from '../types';
+import {
+  CollaborationMessage,
+  CollaborationMessageType,
+  CollaborationPayloads,
+} from '../types';
 import { createStompClient } from '../utils/stompClient';
 
-export const useCollaboration = (projectId: string, onMessageReceived?: (msg: CollaborationMessage) => void) => {
+export const useCollaboration = (
+  projectId: string,
+  onMessageReceived?: (msg: CollaborationMessage) => void
+) => {
   const [isConnected, setIsConnected] = useState(false);
-  const [myIdentity, setMyIdentity] = useState<string>("");
+  const [myIdentity, setMyIdentity] = useState<string>('');
   const stompClient = useRef<Client | null>(null);
 
   // Client-side local storage device ID generation
@@ -25,7 +32,7 @@ export const useCollaboration = (projectId: string, onMessageReceived?: (msg: Co
       deviceId: getDeviceId(),
       onConnect: () => setIsConnected(true),
       onIdentityReceived: setMyIdentity,
-      onMessageReceived
+      onMessageReceived,
     });
 
     client.activate();
@@ -36,11 +43,20 @@ export const useCollaboration = (projectId: string, onMessageReceived?: (msg: Co
     };
   }, [projectId]);
 
-  const sendMessage = <T extends CollaborationMessageType>(type: T, payload: CollaborationPayloads[T]) => {
+  const sendMessage = <T extends CollaborationMessageType>(
+    type: T,
+    payload: CollaborationPayloads[T]
+  ) => {
     if (stompClient.current?.connected) {
       stompClient.current.publish({
         destination: `/app/sync/${projectId}`,
-        body: JSON.stringify({ sender: myIdentity, type, projectId, deviceId: getDeviceId(), payload })
+        body: JSON.stringify({
+          sender: myIdentity,
+          type,
+          projectId,
+          deviceId: getDeviceId(),
+          payload,
+        }),
       });
     }
   };

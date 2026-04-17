@@ -13,13 +13,17 @@ export const drawWaveform = (
   const width = canvas.width;
   const height = canvas.height;
   const data = buffer.getChannelData(0);
-  
+
   clearCanvas(ctx, width, height);
   drawWaveformData(ctx, data, width, height);
   drawPlayheadIndicator(ctx, playhead, width, height);
 };
 
-const clearCanvas = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
+const clearCanvas = (
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number
+) => {
   ctx.clearRect(0, 0, width, height);
   ctx.fillStyle = '#a855f7'; // Purple-500
 };

@@ -15,11 +15,12 @@ export const createStompClient = ({
   deviceId,
   onConnect,
   onIdentityReceived,
-  onMessageReceived
+  onMessageReceived,
 }: StompSetupParams): Client => {
   const socket = new SockJS('http://127.0.0.1:8080/ws-justmakeit');
-  
+
   const client = new Client({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     webSocketFactory: () => socket as any,
     debug: () => {},
     reconnectDelay: 5000,
@@ -29,7 +30,13 @@ export const createStompClient = ({
 
   client.onConnect = () => {
     onConnect();
-    subscribeToProject(client, projectId, deviceId, onIdentityReceived, onMessageReceived);
+    subscribeToProject(
+      client,
+      projectId,
+      deviceId,
+      onIdentityReceived,
+      onMessageReceived
+    );
     sendHandshake(client, projectId, deviceId);
   };
 
@@ -68,7 +75,7 @@ const sendHandshake = (client: Client, projectId: string, deviceId: string) => {
       type: 'JOIN',
       projectId: projectId,
       deviceId: deviceId,
-      payload: {}
-    })
+      payload: {},
+    }),
   });
 };

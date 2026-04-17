@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import Sequencer from "./Sequencer";
+import Sequencer from './Sequencer';
 
 import { Library } from '../types';
 
@@ -11,17 +11,16 @@ function getSampleLibrary() {
     Kick: [],
     Snare: [],
     'Hi-Hat': [],
-    Clap: []
+    Clap: [],
   };
 
   if (fs.existsSync(samplesDir)) {
     const items = fs.readdirSync(samplesDir, { withFileTypes: true });
 
-    items.forEach(item => {
+    items.forEach((item) => {
       if (item.isDirectory()) {
         const folderName = item.name.toLowerCase();
         let category = '';
-
 
         if (folderName.includes('kick')) category = 'Kick';
         else if (folderName.includes('snare')) category = 'Snare';
@@ -30,11 +29,11 @@ function getSampleLibrary() {
 
         if (category) {
           const files = fs.readdirSync(path.join(samplesDir, item.name));
-          files.forEach(file => {
+          files.forEach((file) => {
             if (/\.(wav|mp3|aif)$/i.test(file)) {
               library[category].push({
                 name: file,
-                url: `/samples/${item.name}/${file}`
+                url: `/samples/${item.name}/${file}`,
               });
             }
           });

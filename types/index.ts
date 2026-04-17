@@ -16,7 +16,7 @@ export type CollaborationMessage = {
     projectId: string;
     deviceId: string;
     payload: CollaborationPayloads[K];
-  }
+  };
 }[CollaborationMessageType];
 
 export interface Track {

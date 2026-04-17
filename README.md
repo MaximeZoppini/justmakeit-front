@@ -6,15 +6,15 @@ Interface utilisateur interactive pour la production musicale collaborative assi
 
 ## Stack Technique
 
-*   **Framework** : [Next.js 15](https://nextjs.org/) (App Router)
-*   **Audio Engine** : [Tone.js](https://tonejs.github.io/) pour le séquençage et le rendu audio.
-*   **Collaboration** : SockJS & STOMP pour la synchronisation temps réel.
-*   **Styling** : Tailwind CSS 4.
-*   **Composants** : React 19 avec support complet du TypeScript.
+- **Framework** : [Next.js 15](https://nextjs.org/) (App Router)
+- **Audio Engine** : [Tone.js](https://tonejs.github.io/) pour le séquençage et le rendu audio.
+- **Collaboration** : SockJS & STOMP pour la synchronisation temps réel.
+- **Styling** : Tailwind CSS 4.
+- **Composants** : React 19 avec support complet du TypeScript.
 
 ---
 
-Créer un fichier `.env.local` à la racine de ce dossier. 
+Créer un fichier `.env.local` à la racine de ce dossier.
 
 > Ce fichier est ignoré par Git pour des raisons de sécurité. Pour le développement, vous pouvez vous baser sur les valeurs du fichier `.env.example` situé dans le dossier `justmakeit-back/`.
 
@@ -50,4 +50,4 @@ NEXT_PUBLIC_WS_URL=ws://localhost:8080/ws-justmakeit
     ```
     > L'interface sera accessible sur [http://localhost:3000](http://localhost:3000).
 
-*Built by [Maxime Zoppini] - 2026*
+_Built by [Maxime Zoppini] - 2026_
