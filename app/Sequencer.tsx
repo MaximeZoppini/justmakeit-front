@@ -439,6 +439,7 @@ export default function Sequencer({
 
   return (
     <div
+      data-testid="sequencer-canvas"
       className={`w-full max-w-6xl mx-auto mt-10 p-6 bg-gray-900 text-white rounded-xl shadow-2xl transition-all ${isDragging ? 'border-2 border-purple-500 bg-gray-800' : ''}`}
       onDragOver={(e) => {
         e.preventDefault();
