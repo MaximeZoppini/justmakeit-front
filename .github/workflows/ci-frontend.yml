@@ -20,28 +20,20 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20' # L'utilisation de la version LTS 20.x
-          cache: 'npm' # Active le cache pour npm afin d'accélérer les builds
+          node-version: '20'
+          cache: 'npm'
 
       - name: Install dependencies
-        # J'utilise npm ci car c'est plus performant et fiable en CI que npm install
-        # Si vous utilisez un autre gestionnaire, remplacez par `yarn install` ou `pnpm install`
         run: npm ci
 
       - name: Check Formatting (Prettier)
-        # Assure que le code poussé n'a pas bypassé Husky
         run: npx prettier --check .
 
       - name: Run Linter (ESLint)
         run: npm run lint
 
       - name: Build Check
-        # S'assure que le projet compile correctement (par exemple avec tsc et le build front)
         run: npm run build
 
       - name: Run unit tests
-        # Assurez-vous d'avoir un script "test" configuré dans votre package.json (ex: jest ou vitest)
         run: npm run test
-
-      # Note : Si l'une des étapes (lint, build ou test) échoue, la CI s'arrête en erreur.
-      # GitHub bloquera par défaut la fusion ("merge") vers `main` tant que ce workflow ne passera pas avec succès (si les règles de protection de branche sont activées sur le repository).
