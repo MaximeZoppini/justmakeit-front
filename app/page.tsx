@@ -1,5 +1,5 @@
-import fs from 'fs';
-import path from 'path';
+import fs from 'node:fs';
+import path from 'node:path';
 import Sequencer from './Sequencer';
 
 import { Library } from '../types';
@@ -17,7 +17,7 @@ function getSampleLibrary() {
   if (fs.existsSync(samplesDir)) {
     const items = fs.readdirSync(samplesDir, { withFileTypes: true });
 
-    items.forEach((item) => {
+    for (const item of items) {
       if (item.isDirectory()) {
         const folderName = item.name.toLowerCase();
         let category = '';
@@ -29,17 +29,17 @@ function getSampleLibrary() {
 
         if (category) {
           const files = fs.readdirSync(path.join(samplesDir, item.name));
-          files.forEach((file) => {
+          for (const file of files) {
             if (/\.(wav|mp3|aif)$/i.test(file)) {
               library[category].push({
                 name: file,
                 url: `/samples/${item.name}/${file}`,
               });
             }
-          });
+          }
         }
       }
-    });
+    }
   }
   return library;
 }

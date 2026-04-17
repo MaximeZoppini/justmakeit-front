@@ -7,7 +7,7 @@ export interface StompSetupParams {
   deviceId: string;
   onConnect: () => void;
   onIdentityReceived: (sender: string) => void;
-  onMessageReceived?: (msg: CollaborationMessage) => void;
+  onMessageReceived?: (message: CollaborationMessage) => void;
 }
 
 export const createStompClient = ({
@@ -53,14 +53,17 @@ const subscribeToProject = (
   projectId: string,
   deviceId: string,
   onIdentityReceived: (sender: string) => void,
-  onMessageReceived?: (msg: CollaborationMessage) => void
+  onMessageReceived?: (message: CollaborationMessage) => void
 ) => {
   client.subscribe(`/topic/project/${projectId}`, (payload) => {
     const message = JSON.parse(payload.body);
 
-    if (message.type === 'JOIN' && message.deviceId === deviceId) {
-      if (message.sender) onIdentityReceived(message.sender);
-    }
+    if (
+      message.type === 'JOIN' &&
+      message.deviceId === deviceId &&
+      message.sender
+    )
+      onIdentityReceived(message.sender);
 
     if (message.deviceId !== deviceId && onMessageReceived) {
       onMessageReceived(message);

@@ -10,7 +10,7 @@ test('drawWaveform runs without throwing errors', () => {
   // Create a minimal ToneAudioBuffer mock
   const mockBuffer = {
     getChannelData: () =>
-      new Float32Array(44100).map(() => Math.random() * 2 - 1),
+      new Float32Array(44_100).map(() => Math.random() * 2 - 1),
   } as any;
 
   expect(() => drawWaveform(canvas, mockBuffer)).not.toThrow();

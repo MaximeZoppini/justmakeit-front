@@ -2,8 +2,8 @@ import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import { vi } from 'vitest';
 import Home from '../app/page';
-import fs from 'fs';
-import path from 'path';
+import fs from 'node:fs';
+import path from 'node:path';
 
 vi.mock('tone', () => {
   const Player = vi.fn().mockImplementation(function () {
@@ -12,7 +12,7 @@ vi.mock('tone', () => {
       start: vi.fn(),
       stop: vi.fn(),
       dispose: vi.fn(),
-      load: vi.fn().mockResolvedValue(undefined),
+      load: vi.fn().mockResolvedValue(),
       mute: false,
       loaded: true,
       buffer: { duration: 0 },
@@ -40,9 +40,9 @@ vi.mock('tone', () => {
     now: vi.fn(() => 0),
     context: {
       state: 'running',
-      resume: vi.fn().mockResolvedValue(undefined),
+      resume: vi.fn().mockResolvedValue(),
     },
-    start: vi.fn().mockResolvedValue(undefined),
+    start: vi.fn().mockResolvedValue(),
   };
 });
 

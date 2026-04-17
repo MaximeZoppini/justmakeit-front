@@ -4,10 +4,9 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import * as Tone from 'tone';
 import { useCollaboration } from './useCollaboration';
 import { drawWaveform } from '../utils/waveform';
-
 import { Library, Track, BackingLoop, CollaborationMessage } from '../types';
 
-interface SequencerProps {
+interface SequencerProperties {
   initialLibrary: Library;
   projectId?: string;
 }
@@ -18,8 +17,7 @@ const STEPS = 16;
 export default function Sequencer({
   initialLibrary,
   projectId = 'default-room',
-}: SequencerProps) {
-  // --- STATE ---
+}: SequencerProperties) {
   const [totalSteps, setTotalSteps] = useState(STEPS);
   const [tracks, setTracks] = useState<Track[]>(() => {
     return INSTRUMENT_NAMES.map((name, index) => {
@@ -43,47 +41,41 @@ export default function Sequencer({
   const [backingLoop, setBackingLoop] = useState<BackingLoop | null>(null);
 
   const [grid, setGrid] = useState<boolean[][]>(() =>
-    INSTRUMENT_NAMES.map(() => Array(STEPS).fill(false))
+    INSTRUMENT_NAMES.map(() => Array.from({ length: STEPS }).fill(false))
   );
 
-  // --- REFS ---
-  const gridRef = useRef(grid);
-  const playersRef = useRef<(Tone.Player | null)[]>([]);
-  const backingPlayerRef = useRef<Tone.Player | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const loopRef = useRef<Tone.Sequence | null>(null);
-  const backingStartTimeRef = useRef<number>(0);
+  const gridReference = useRef(grid);
+  const playersReference = useRef<(Tone.Player | null)[]>([]);
+  const backingPlayerReference = useRef<Tone.Player | null>(null);
+  const canvasReference = useRef<HTMLCanvasElement>(null);
+  const loopReference = useRef<Tone.Sequence | null>(null);
+  const backingStartTimeReference = useRef<number>(0);
 
-  // Sync gridRef pour accès dans la boucle sans re-render
   useEffect(() => {
-    gridRef.current = grid;
+    gridReference.current = grid;
   }, [grid]);
 
-  // Sync BPM
   useEffect(() => {
     if (Tone.Transport?.bpm) {
       Tone.Transport.bpm.value = bpm;
     }
-    // On définit la boucle du Transport pour qu'elle corresponde à la grille
-    // 16 steps = 1 mesure ("1m"), 32 steps = 2 mesures ("2m")
     Tone.Transport.loop = true;
     Tone.Transport.loopStart = 0;
     Tone.Transport.loopEnd = totalSteps === 16 ? '1m' : '2m';
   }, [bpm, totalSteps]);
 
-  // --- COLLABORATION ---
-  const handleIncomingUpdate = useCallback((msg: CollaborationMessage) => {
-    if (msg.type === 'NOTE_TOGGLED') {
-      const { trackIndex, stepIndex, active } = msg.payload;
-      setGrid((prev) => {
-        const newGrid = [...prev];
+  const handleIncomingUpdate = useCallback((message: CollaborationMessage) => {
+    if (message.type === 'NOTE_TOGGLED') {
+      const { trackIndex, stepIndex, active } = message.payload;
+      setGrid((previous) => {
+        const newGrid = [...previous];
         newGrid[trackIndex] = [...newGrid[trackIndex]];
         newGrid[trackIndex][stepIndex] = active;
         return newGrid;
       });
     }
-    if (msg.type === 'BPM_CHANGED') {
-      setBpm(msg.payload.bpm);
+    if (message.type === 'BPM_CHANGED') {
+      setBpm(message.payload.bpm);
     }
   }, []);
 
@@ -97,13 +89,10 @@ export default function Sequencer({
     sendMessage('BPM_CHANGED', { bpm: newBpm });
   };
 
-  // --- AUDIO ENGINE ---
-
-  // Initialize Tone.js Players
   useEffect(() => {
-    if (playersRef.current.length !== tracks.length) {
-      playersRef.current.forEach((p) => p?.dispose());
-      playersRef.current = tracks.map((track) => {
+    if (playersReference.current.length !== tracks.length) {
+      for (const p of playersReference.current) p?.dispose();
+      playersReference.current = tracks.map((track) => {
         if (track.url) {
           return new Tone.Player({
             url: track.url,
@@ -119,45 +108,40 @@ export default function Sequencer({
     }
   }, [tracks.length]);
 
-  // Setup sequencer loop matrix
   useEffect(() => {
-    if (loopRef.current) loopRef.current.dispose();
+    if (loopReference.current) loopReference.current.dispose();
 
-    loopRef.current = new Tone.Sequence(
+    loopReference.current = new Tone.Sequence(
       (time, step) => {
         setCurrentStep(step);
 
-        const currentGrid = gridRef.current;
-        currentGrid.forEach((trackSteps, trackIndex) => {
+        const currentGrid = gridReference.current;
+        for (const [trackIndex, trackSteps] of currentGrid.entries()) {
           if (trackSteps && trackSteps[step]) {
-            const player = playersRef.current[trackIndex];
+            const player = playersReference.current[trackIndex];
             if (player && player.loaded) {
-              // On utilise une petite marge (offset) pour éviter les clics audio
               player.start(time, 0);
             }
           }
-        });
+        }
       },
-      Array.from({ length: totalSteps }, (_, i) => i),
+      Array.from({ length: totalSteps }, (_, index) => index),
       '16n'
     );
 
-    // On programme la séquence pour qu'elle soit prête sur le Transport à la position 0
-    loopRef.current.start(0);
+    loopReference.current.start(0);
 
     return () => {
-      loopRef.current?.dispose();
+      loopReference.current?.dispose();
     };
   }, [totalSteps, tracks.length]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
-      playersRef.current.forEach((p) => p?.dispose());
+      for (const p of playersReference.current) p?.dispose();
     };
   }, []);
 
-  // 2. Backing Loop Player
   useEffect(() => {
     if (backingLoop?.url) {
       const player = new Tone.Player({
@@ -165,49 +149,47 @@ export default function Sequencer({
         loop: true,
         mute: backingLoop.isMuted,
         onload: () => {
-          drawWaveform(canvasRef.current, player.buffer);
-          // On ne synchronise plus au Transport pour éviter que la boucle du séquenceur (16/32 steps) ne coupe le sample
+          drawWaveform(canvasReference.current, player.buffer);
           if (isPlaying) player.start();
         },
       }).toDestination();
 
-      backingPlayerRef.current = player;
+      backingPlayerReference.current = player;
     }
 
     return () => {
-      backingPlayerRef.current?.dispose();
-      backingPlayerRef.current = null;
+      backingPlayerReference.current?.dispose();
+      backingPlayerReference.current = null;
     };
   }, [backingLoop?.url]);
 
-  // Independent playback for melodic backing loops
   useEffect(() => {
-    if (backingPlayerRef.current && backingPlayerRef.current.loaded) {
+    if (
+      backingPlayerReference.current &&
+      backingPlayerReference.current.loaded
+    ) {
       if (isPlaying) {
-        backingStartTimeRef.current = Tone.now();
-        backingPlayerRef.current.start();
+        backingStartTimeReference.current = Tone.now();
+        backingPlayerReference.current.start();
       } else {
-        backingPlayerRef.current.stop();
+        backingPlayerReference.current.stop();
       }
     }
   }, [isPlaying]);
 
-  // 3. Sync Mute states
   useEffect(() => {
-    tracks.forEach((track, i) => {
-      if (playersRef.current[i]) {
-        playersRef.current[i]!.mute = track.isMuted;
+    for (const [index, track] of tracks.entries()) {
+      if (playersReference.current[index]) {
+        playersReference.current[index]!.mute = track.isMuted;
       }
-    });
+    }
   }, [tracks]);
 
   useEffect(() => {
-    if (backingPlayerRef.current && backingLoop) {
-      backingPlayerRef.current.mute = backingLoop.isMuted;
+    if (backingPlayerReference.current && backingLoop) {
+      backingPlayerReference.current.mute = backingLoop.isMuted;
     }
   }, [backingLoop?.isMuted]);
-
-  // --- VISUALIZATION ---
 
   useEffect(() => {
     let animationId: number = 0;
@@ -215,17 +197,16 @@ export default function Sequencer({
     const animate = () => {
       if (
         isPlaying &&
-        backingPlayerRef.current &&
-        backingPlayerRef.current.loaded
+        backingPlayerReference.current &&
+        backingPlayerReference.current.loaded
       ) {
-        const buffer = backingPlayerRef.current.buffer;
+        const buffer = backingPlayerReference.current.buffer;
         const duration = buffer.duration;
         if (duration > 0) {
-          // On calcule la progression basée sur le temps réel écoulé depuis le START,
-          // et non sur le Transport qui boucle toutes les 1 ou 2 mesures.
-          const elapsedTime = Tone.now() - backingStartTimeRef.current;
+          // Progress based on real elapsed time since start to avoid Transport looping cuts
+          const elapsedTime = Tone.now() - backingStartTimeReference.current;
           const progress = (elapsedTime % duration) / duration;
-          drawWaveform(canvasRef.current, buffer, progress);
+          drawWaveform(canvasReference.current, buffer, progress);
         }
       }
       animationId = requestAnimationFrame(animate);
@@ -235,40 +216,41 @@ export default function Sequencer({
       animate();
     } else {
       cancelAnimationFrame(animationId);
-      if (backingPlayerRef.current?.loaded) {
-        drawWaveform(canvasRef.current, backingPlayerRef.current.buffer, 0);
+      if (backingPlayerReference.current?.loaded) {
+        drawWaveform(
+          canvasReference.current,
+          backingPlayerReference.current.buffer,
+          0
+        );
       }
     }
 
     return () => cancelAnimationFrame(animationId);
   }, [isPlaying]);
 
-  // --- HANDLERS ---
-
-  // Gestion du Play/Pause
   const togglePlay = async () => {
-    if (!isPlaying) {
+    if (isPlaying) {
+      Tone.Transport.stop();
+      setCurrentStep(0);
+    } else {
       await Tone.start();
       if (Tone.context.state !== 'running') await Tone.context.resume();
       Tone.Transport.start();
-    } else {
-      Tone.Transport.stop();
-      setCurrentStep(0);
     }
     setIsPlaying(!isPlaying);
   };
 
   const handleSampleChange = (index: number, newUrl: string) => {
-    setTracks((prev) => {
-      const newTracks = [...prev];
+    setTracks((previous) => {
+      const newTracks = [...previous];
       newTracks[index] = { ...newTracks[index], url: newUrl };
       return newTracks;
     });
 
-    if (playersRef.current[index]) {
-      playersRef.current[index]?.load(newUrl);
+    if (playersReference.current[index]) {
+      playersReference.current[index]?.load(newUrl);
     } else {
-      playersRef.current[index] = new Tone.Player({
+      playersReference.current[index] = new Tone.Player({
         url: newUrl,
         onload: () => {},
         onerror: (e: Error) =>
@@ -293,11 +275,10 @@ export default function Sequencer({
       setBackendMessage(data.serverMessage);
       if (data.bpm) setDetectedBpm(data.bpm);
 
-      // Effacer le message après 5 secondes
       setTimeout(() => setBackendMessage(null), 5000);
     } catch (error) {
-      console.error('Erreur analyse BPM', error);
-      setBackendMessage('Erreur de connexion au backend');
+      console.error('BPM analysis error', error);
+      setBackendMessage('Backend connection error');
     }
   };
 
@@ -315,7 +296,7 @@ export default function Sequencer({
   };
 
   const getAudioFiles = (e: React.DragEvent) => {
-    return Array.from(e.dataTransfer.files).filter(
+    return [...e.dataTransfer.files].filter(
       (f) => f.type.startsWith('audio/') || f.name.match(/\.(wav|mp3)$/i)
     );
   };
@@ -327,7 +308,6 @@ export default function Sequencer({
     const audioFiles = getAudioFiles(e);
     if (audioFiles.length === 0) return;
 
-    // Test communication pour le premier fichier déposé
     sendFileToBackend(audioFiles[0]);
 
     const newTracks = audioFiles.map((file) => ({
@@ -337,10 +317,10 @@ export default function Sequencer({
       isCustom: true,
     }));
 
-    setTracks((prev) => [...prev, ...newTracks]);
-    setGrid((prev) => [
-      ...prev,
-      ...newTracks.map(() => Array(totalSteps).fill(false)),
+    setTracks((previous) => [...previous, ...newTracks]);
+    setGrid((previous) => [
+      ...previous,
+      ...newTracks.map(() => new Array(totalSteps).fill(false)),
     ]);
   };
 
@@ -364,29 +344,31 @@ export default function Sequencer({
   const changeGridSize = (newSize: number) => {
     if (totalSteps === newSize) return;
     setTotalSteps(newSize);
-    setGrid((prev) =>
-      prev.map((row) =>
+    setGrid((previous) =>
+      previous.map((row) =>
         newSize === 32 ? [...row, ...row] : row.slice(0, STEPS)
       )
     );
   };
 
   const handleClearAll = () => {
-    setGrid(tracks.map(() => Array(totalSteps).fill(false)));
+    setGrid(tracks.map(() => new Array(totalSteps).fill(false)));
   };
 
   const updateTrackGrid = (
     trackIndex: number,
     pageIndex: number,
-    modifier: (stepIdx: number, val: boolean) => boolean
+    modifier: (stepIndex: number, value: boolean) => boolean
   ) => {
     const start = pageIndex * STEPS;
     const end = start + STEPS;
-    setGrid((prev) =>
-      prev.map((row, rIdx) =>
-        rIdx === trackIndex
-          ? row.map((val, stepIdx) =>
-              stepIdx >= start && stepIdx < end ? modifier(stepIdx, val) : val
+    setGrid((previous) =>
+      previous.map((row, rIndex) =>
+        rIndex === trackIndex
+          ? row.map((value, stepIndex) =>
+              stepIndex >= start && stepIndex < end
+                ? modifier(stepIndex, value)
+                : value
             )
           : row
       )
@@ -397,7 +379,7 @@ export default function Sequencer({
     updateTrackGrid(
       trackIndex,
       pageIndex,
-      (stepIdx) => stepIdx % interval === 0
+      (stepIndex) => stepIndex % interval === 0
     );
   };
 
@@ -406,24 +388,23 @@ export default function Sequencer({
   };
 
   const toggleMute = (index: number) => {
-    setTracks((prev) => {
-      const newTracks = [...prev];
+    setTracks((previous) => {
+      const newTracks = [...previous];
       newTracks[index].isMuted = !newTracks[index].isMuted;
       return newTracks;
     });
   };
 
   const handleRemoveTrack = (index: number) => {
-    setTracks((prev) => prev.filter((_, i) => i !== index));
-    setGrid((prev) => prev.filter((_, i) => i !== index));
+    setTracks((previous) => previous.filter((_, index_) => index_ !== index));
+    setGrid((previous) => previous.filter((_, index_) => index_ !== index));
   };
 
   const toggleStep = (trackIndex: number, stepIndex: number) => {
-    // Correction de l'immutabilité pour éviter les bugs de référence
     const newState = !grid[trackIndex][stepIndex];
-    const newGrid = grid.map((row, rIdx) =>
-      rIdx === trackIndex
-        ? row.map((s, sIdx) => (sIdx === stepIndex ? newState : s))
+    const newGrid = grid.map((row, rIndex) =>
+      rIndex === trackIndex
+        ? row.map((s, sIndex) => (sIndex === stepIndex ? newState : s))
         : row
     );
 
@@ -432,7 +413,7 @@ export default function Sequencer({
   };
 
   const copyInviteLink = () => {
-    const url = `${window.location.origin}/project/${projectId}`;
+    const url = `${globalThis.location.origin}/project/${projectId}`;
     navigator.clipboard.writeText(url);
     alert("Lien d'invitation copié !");
   };
@@ -448,7 +429,6 @@ export default function Sequencer({
       onDragLeave={() => setIsDragging(false)}
       onDrop={handleDrop}
     >
-      {/* HEADER & CONTROLS */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex flex-col">
           <h2 className="text-2xl font-bold text-purple-400">JustMakeIt !</h2>
@@ -463,7 +443,6 @@ export default function Sequencer({
         </div>
 
         <div className="flex items-center gap-4">
-          {/* BPM */}
           <div className="flex flex-col items-center gap-1">
             <div className="flex items-center gap-2">
               <span className="text-xs text-gray-400 font-mono">BPM:</span>
@@ -558,7 +537,6 @@ export default function Sequencer({
         </button>
       )}
 
-      {/* BACKING LOOP */}
       <div
         className={`mb-6 p-4 rounded-lg border-2 border-dashed transition-colors ${backingLoop ? 'border-purple-500 bg-purple-900/20' : 'border-gray-700 bg-gray-800/50 hover:border-gray-500'}`}
         onDragOver={(e) => {
@@ -567,11 +545,7 @@ export default function Sequencer({
         }}
         onDrop={handleLoopDrop}
       >
-        {!backingLoop ? (
-          <div className="text-center text-gray-500 text-sm py-2">
-            🎵 Drag & Drop a Melody Loop here (WAV/MP3)
-          </div>
-        ) : (
+        {backingLoop ? (
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -585,8 +559,10 @@ export default function Sequencer({
               <div className="flex gap-2">
                 <button
                   onClick={() =>
-                    setBackingLoop((prev) =>
-                      prev ? { ...prev, isMuted: !prev.isMuted } : null
+                    setBackingLoop((previous) =>
+                      previous
+                        ? { ...previous, isMuted: !previous.isMuted }
+                        : null
                     )
                   }
                   className={`text-xs px-2 py-1 rounded border ${backingLoop.isMuted ? 'bg-red-900 border-red-700 text-red-200' : 'bg-gray-700 border-gray-600 text-gray-400'}`}
@@ -602,17 +578,20 @@ export default function Sequencer({
               </div>
             </div>
             <canvas
-              ref={canvasRef}
+              ref={canvasReference}
               width={1000}
               height={120}
               className="w-full h-24 bg-gray-900/50 rounded border border-gray-700/50"
             />
           </div>
+        ) : (
+          <div className="text-center text-gray-500 text-sm py-2">
+            🎵 Drag & Drop a Melody Loop here (WAV/MP3)
+          </div>
         )}
       </div>
 
-      {/* GRID PAGES */}
-      {[...Array(totalSteps / STEPS)].map((_, pageIndex) => (
+      {Array.from({ length: totalSteps / STEPS }).map((_, pageIndex) => (
         <div key={pageIndex} className={pageIndex > 0 ? 'mt-8 relative' : ''}>
           {pageIndex > 0 && (
             <div className="absolute -top-6 left-0 text-xs text-gray-500 font-mono">
@@ -620,12 +599,11 @@ export default function Sequencer({
             </div>
           )}
           <div className="flex flex-col gap-4">
-            {tracks.map((track, rowIdx) => (
+            {tracks.map((track, rowIndex) => (
               <div
-                key={`${track.name}-${rowIdx}`}
+                key={`${track.name}-${rowIndex}`}
                 className="flex items-center gap-4"
               >
-                {/* Instrument Controls */}
                 <div className="w-32 flex flex-col items-end gap-1">
                   <div className="flex items-center gap-2 w-full justify-end">
                     <span
@@ -635,7 +613,7 @@ export default function Sequencer({
                       {track.name}
                     </span>
                     <button
-                      onClick={() => toggleMute(rowIdx)}
+                      onClick={() => toggleMute(rowIndex)}
                       className={`text-[10px] px-1.5 py-0.5 rounded border ${track.isMuted ? 'bg-red-900 border-red-700 text-red-200' : 'bg-gray-700 border-gray-600 text-gray-400'}`}
                       title="Mute"
                     >
@@ -643,7 +621,7 @@ export default function Sequencer({
                     </button>
                     {track.isCustom && (
                       <button
-                        onClick={() => handleRemoveTrack(rowIdx)}
+                        onClick={() => handleRemoveTrack(rowIndex)}
                         className="text-[10px] px-1.5 py-0.5 rounded bg-gray-800 hover:bg-red-900 text-gray-500 hover:text-red-200 transition-colors"
                         title="Delete Track"
                       >
@@ -652,13 +630,12 @@ export default function Sequencer({
                     )}
                   </div>
 
-                  {/* Dropdown */}
                   {!track.isCustom && initialLibrary[track.name] ? (
                     <select
                       className="bg-gray-800 text-white text-[10px] rounded px-1 py-0.5 border border-gray-700 focus:border-purple-500 outline-none w-full"
                       value={track.url || ''}
                       onChange={(e) =>
-                        handleSampleChange(rowIdx, e.target.value)
+                        handleSampleChange(rowIndex, e.target.value)
                       }
                     >
                       {initialLibrary[track.name]?.map((sample) => (
@@ -671,24 +648,23 @@ export default function Sequencer({
                     <div className="h-6 w-full"></div>
                   )}
 
-                  {/* Fill/Clear Tools */}
                   <div className="flex gap-1 mt-1 w-full justify-end">
                     <button
-                      onClick={() => fillTrack(rowIdx, 4, pageIndex)}
+                      onClick={() => fillTrack(rowIndex, 4, pageIndex)}
                       className="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-300 px-2 py-1 rounded transition-colors"
                       title="Fill every 4th"
                     >
                       1/4
                     </button>
                     <button
-                      onClick={() => fillTrack(rowIdx, 2, pageIndex)}
+                      onClick={() => fillTrack(rowIndex, 2, pageIndex)}
                       className="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-300 px-2 py-1 rounded transition-colors"
                       title="Fill every 2nd"
                     >
                       1/2
                     </button>
                     <button
-                      onClick={() => clearTrack(rowIdx, pageIndex)}
+                      onClick={() => clearTrack(rowIndex, pageIndex)}
                       className="text-[10px] bg-red-900 hover:bg-red-800 text-red-100 px-2 py-1 rounded transition-colors"
                       title="Clear track"
                     >
@@ -697,24 +673,30 @@ export default function Sequencer({
                   </div>
                 </div>
 
-                {/* Steps */}
                 <div className="flex-1 grid grid-cols-16 gap-1">
-                  {grid[rowIdx]
+                  {grid[rowIndex]
                     .slice(pageIndex * 16, (pageIndex + 1) * 16)
-                    .map((isActive, localStepIdx) => {
-                      const stepIdx = pageIndex * 16 + localStepIdx;
+                    .map((isActive, localStepIndex) => {
+                      const stepIndex = pageIndex * 16 + localStepIndex;
+                      const isQuarter = Math.floor(stepIndex / 4) % 2 === 0;
+                      let bgClass = 'hover:bg-gray-600 ';
+                      if (isActive) {
+                        bgClass =
+                          'bg-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.5)]';
+                      } else if (isQuarter) {
+                        bgClass += 'bg-gray-800';
+                      } else {
+                        bgClass += 'bg-red-950';
+                      }
+
                       return (
                         <button
-                          key={stepIdx}
-                          onClick={() => toggleStep(rowIdx, stepIdx)}
+                          key={stepIndex}
+                          onClick={() => toggleStep(rowIndex, stepIndex)}
                           className={`
                           h-14 w-full rounded-sm transition-colors duration-100
-                          ${
-                            isActive
-                              ? 'bg-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.5)]'
-                              : `hover:bg-gray-600 ${Math.floor(stepIdx / 4) % 2 === 0 ? 'bg-gray-800' : 'bg-red-950'}`
-                          }
-                          ${currentStep === stepIdx && isPlaying ? 'border-2 border-white' : ''}
+                          ${bgClass}
+                          ${currentStep === stepIndex && isPlaying ? 'border-2 border-white' : ''}
                         `}
                         />
                       );

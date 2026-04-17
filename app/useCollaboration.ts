@@ -9,7 +9,7 @@ import { createStompClient } from '../utils/stompClient';
 
 export const useCollaboration = (
   projectId: string,
-  onMessageReceived?: (msg: CollaborationMessage) => void
+  onMessageReceived?: (message: CollaborationMessage) => void
 ) => {
   const [isConnected, setIsConnected] = useState(false);
   const [myIdentity, setMyIdentity] = useState<string>('');
@@ -17,10 +17,10 @@ export const useCollaboration = (
 
   // Client-side local storage device ID generation
   const getDeviceId = () => {
-    if (typeof window === 'undefined') return '';
+    if (globalThis.window === undefined) return '';
     let id = localStorage.getItem('justmakeit_device_id');
     if (!id) {
-      id = 'dev_' + Math.random().toString(36).substr(2, 9);
+      id = 'dev_' + Math.random().toString(36).slice(2, 11);
       localStorage.setItem('justmakeit_device_id', id);
     }
     return id;
