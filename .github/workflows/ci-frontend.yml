@@ -42,5 +42,5 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-            name: vitest-coverage-report
-            path: coverage/
+          name: vitest-coverage-report
+          path: coverage/
