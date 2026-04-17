@@ -28,6 +28,10 @@ jobs:
         # Si vous utilisez un autre gestionnaire, remplacez par `yarn install` ou `pnpm install`
         run: npm ci
 
+      - name: Check Formatting (Prettier)
+        # Assure que le code poussé n'a pas bypassé Husky
+        run: npx prettier --check .
+
       - name: Run Linter (ESLint)
         run: npm run lint
 
