@@ -41,7 +41,7 @@ export default function Sequencer({
   const [backingLoop, setBackingLoop] = useState<BackingLoop | null>(null);
 
   const [grid, setGrid] = useState<boolean[][]>(() =>
-    INSTRUMENT_NAMES.map(() => Array.from({ length: STEPS }).fill(false))
+    INSTRUMENT_NAMES.map(() => Array.from({ length: STEPS }, () => false))
   );
 
   const gridReference = useRef(grid);
@@ -320,7 +320,7 @@ export default function Sequencer({
     setTracks((previous) => [...previous, ...newTracks]);
     setGrid((previous) => [
       ...previous,
-      ...newTracks.map(() => new Array(totalSteps).fill(false)),
+      ...newTracks.map(() => Array.from({ length: totalSteps }, () => false)),
     ]);
   };
 
@@ -352,7 +352,7 @@ export default function Sequencer({
   };
 
   const handleClearAll = () => {
-    setGrid(tracks.map(() => new Array(totalSteps).fill(false)));
+    setGrid(tracks.map(() => Array.from({ length: totalSteps }, () => false)));
   };
 
   const updateTrackGrid = (
